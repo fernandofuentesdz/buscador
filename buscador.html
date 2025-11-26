@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Artículos Avanzado</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { background-color: #f3f4f6; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 30px; height: 30px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Encabezado -->
+    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-10">
+        <div class="container mx-auto max-w-3xl flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="database" class="w-6 h-6"></i>
+                <h1 class="text-xl font-bold">Catálogo Maestro</h1>
+            </div>
+            <div id="status-indicator" class="text-xs bg-blue-700 px-2 py-1 rounded text-blue-200">
+                Iniciando...
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="container mx-auto max-w-3xl p-4 flex-grow">
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            
+            <!-- Sección de Filtros -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-100">
+                <!-- Filtro Proveedor -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1" for="providerSelect">
+                        1. Filtrar por Proveedor
+                    </label>
+                    <div class="relative">
+                        <select id="providerSelect" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-gray-50" disabled>
+                            <option value="">Cargando...</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <i data-lucide="filter" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtro Marca -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1" for="brandSelect">
+                        2. Filtrar por Marca
+                    </label>
+                    <div class="relative">
+                        <select id="brandSelect" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-gray-50" disabled>
+                            <option value="">Todas las marcas</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <i data-lucide="tag" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buscador por Texto -->
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="search">
+                3. Buscar por Descripción o Código
+            </label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="search" class="h-5 w-5 text-gray-400"></i>
+                </div>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+                    placeholder="Opcional: Escribe para refinar (ej: tornillo)..."
+                    disabled
+                >
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <div id="loadingSpinner" class="loader"></div>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center mt-2">
+                <p class="text-xs text-gray-500">
+                    Mostrando <span id="count" class="font-bold">0</span> resultados.
+                </p>
+                <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-medium hidden" id="resetBtn">
+                    Limpiar filtros
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Resultados -->
+        <div id="resultsContainer" class="space-y-3">
+            <div class="text-center text-gray-500 py-10">
+                <i data-lucide="arrow-up" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                <p>Cargando base de datos...</p>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-gray-800 text-gray-400 text-center p-4 text-sm mt-auto">
+        <p>Sistema de Inventario - Conectado a Google Sheets</p>
+    </footer>
+
+    <script>
+        const SHEET_ID = '1uQjHorjJMygTZx-ZX8kOCgxeDusvdomiNud4rR1k6ew';
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+
+        // Estado
+        let allData = [];
+        let uniqueProviders = new Set();
+        
+        // Referencias DOM
+        const searchInput = document.getElementById('searchInput');
+        const providerSelect = document.getElementById('providerSelect');
+        const brandSelect = document.getElementById('brandSelect');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const countSpan = document.getElementById('count');
+        const spinner = document.getElementById('loadingSpinner');
+        const statusIndicator = document.getElementById('status-indicator');
+        const resetBtn = document.getElementById('resetBtn');
+
+        lucide.createIcons();
+
+        function init() {
+            spinner.style.display = 'block';
+            statusIndicator.textContent = 'Cargando datos...';
+
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const rawData = results.data;
+                    
+                    if (rawData.length > 0) {
+                        const headers = Object.keys(rawData[0]);
+                        
+                        // Mapeo de columnas con prioridad a coincidencia exacta
+                        const keyMap = {};
+                        
+                        // 1. Búsqueda exacta primero
+                        headers.forEach(h => {
+                            const normalized = h.toUpperCase().trim();
+                            if(normalized === "ARTICULO" || normalized === "ARTÍCULO") keyMap.articulo = h;
+                            if(normalized === "DESCRIPCION" || normalized === "DESCRIPCIÓN") keyMap.descripcion = h;
+                            if(normalized === "PROVEEDOR") keyMap.proveedor = h;
+                            if(normalized === "MARCA") keyMap.marca = h;
+                        });
+
+                        // 2. Búsqueda flexible si no se encontró la exacta
+                        headers.forEach(h => {
+                            const upper = h.toUpperCase();
+                            if(!keyMap.articulo && (upper.includes("ARTICULO") || upper.includes("ARTÍCULO"))) keyMap.articulo = h;
+                            if(!keyMap.descripcion && (upper.includes("DESCRIPCION") || upper.includes("DESCRIPCIÓN"))) keyMap.descripcion = h;
+                            if(!keyMap.proveedor && upper.includes("PROVEEDOR")) keyMap.proveedor = h;
+                            if(!keyMap.marca && upper.includes("MARCA")) keyMap.marca = h;
+                        });
+
+                        console.log("Mapeo de columnas detectado:", keyMap);
+
+                        // Procesar datos
+                        allData = rawData.map(row => ({
+                            articulo: (row[keyMap.articulo] || "N/A").trim(),
+                            descripcion: (row[keyMap.descripcion] || "Sin descripción").trim(),
+                            proveedor: (row[keyMap.proveedor] || "N/A").trim(),
+                            marca: (row[keyMap.marca] || "N/A").trim()
+                        }));
+
+                        // Inicializar Filtros
+                        initFilters();
+
+                        statusIndicator.textContent = 'En línea';
+                        statusIndicator.className = 'text-xs bg-green-600 px-2 py-1 rounded text-green-100';
+                        enableControls();
+                        
+                        // Render inicial
+                        resultsContainer.innerHTML = `
+                            <div class="text-center text-gray-400 py-10 bg-white rounded shadow-sm">
+                                <p>Selecciona un Proveedor o Marca, o escribe en el buscador.</p>
+                            </div>
+                        `;
+                    } else {
+                        showError();
+                    }
+                    spinner.style.display = 'none';
+                },
+                error: function(err) {
+                    console.error(err);
+                    showError();
+                }
+            });
+        }
+
+        function showError() {
+            statusIndicator.textContent = 'Error';
+            statusIndicator.className = 'text-xs bg-red-600 px-2 py-1 rounded text-red-100';
+            resultsContainer.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded">Error al cargar datos.</div>`;
+        }
+
+        function enableControls() {
+            searchInput.disabled = false;
+            providerSelect.disabled = false;
+            brandSelect.disabled = false;
+        }
+
+        // --- Lógica de Listas Desplegables ---
+
+        function initFilters() {
+            // Obtener proveedores únicos y filtrar vacíos o N/A
+            const providers = [...new Set(allData.map(item => item.proveedor))]
+                .filter(p => p && p !== "N/A")
+                .sort();
+            
+            // Llenar Select de Proveedores
+            providerSelect.innerHTML = '<option value="">Todos los proveedores</option>';
+            providers.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p;
+                option.textContent = p;
+                providerSelect.appendChild(option);
+            });
+
+            // Llenar Select de Marcas (Inicialmente todas)
+            updateBrandOptions();
+        }
+
+        function updateBrandOptions() {
+            const selectedProvider = providerSelect.value;
+            
+            // Filtrar datos para ver qué marcas están disponibles bajo este proveedor
+            let availableData = allData;
+            if (selectedProvider) {
+                availableData = allData.filter(item => item.proveedor === selectedProvider);
+            }
+
+            const brands = [...new Set(availableData.map(item => item.marca))]
+                .filter(b => b && b !== "N/A")
+                .sort();
+
+            // Reconstruir select de marcas
+            const currentBrand = brandSelect.value;
+            brandSelect.innerHTML = '<option value="">Todas las marcas</option>';
+            brands.forEach(b => {
+                const option = document.createElement('option');
+                option.value = b;
+                option.textContent = b;
+                brandSelect.appendChild(option);
+            });
+
+            // Intentar restaurar selección previa si la marca aún existe en la nueva lista
+            if (brands.includes(currentBrand)) {
+                brandSelect.value = currentBrand;
+            }
+        }
+
+        function resetFilters() {
+            providerSelect.value = "";
+            brandSelect.value = "";
+            searchInput.value = "";
+            updateBrandOptions();
+            filterAndRender();
+        }
+
+        // --- Lógica de Filtrado Principal ---
+
+        function filterAndRender() {
+            const term = searchInput.value.toLowerCase().trim();
+            const provider = providerSelect.value;
+            const brand = brandSelect.value;
+
+            // Mostrar botón reset si hay filtros activos
+            if(term || provider || brand) {
+                resetBtn.classList.remove('hidden');
+            } else {
+                resetBtn.classList.add('hidden');
+                resultsContainer.innerHTML = `
+                    <div class="text-center text-gray-400 py-10 bg-white rounded shadow-sm">
+                        <p>Usa los filtros arriba para comenzar.</p>
+                    </div>
+                `;
+                countSpan.textContent = "0";
+                return;
+            }
+
+            // Aplicar los 3 filtros
+            const filtered = allData.filter(item => {
+                const matchProvider = provider === "" || item.proveedor === provider;
+                const matchBrand = brand === "" || item.marca === brand;
+                const matchSearch = term === "" || 
+                                    item.descripcion.toLowerCase().includes(term) || 
+                                    item.articulo.toLowerCase().includes(term);
+                
+                return matchProvider && matchBrand && matchSearch;
+            });
+
+            countSpan.textContent = filtered.length;
+
+            // Renderizar
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="text-center text-gray-500 py-8 bg-white rounded shadow-sm">
+                        <i data-lucide="frown" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i>
+                        <p>No hay resultados con estos filtros.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            const displayLimit = 100;
+            const html = filtered.slice(0, displayLimit).map(item => {
+                const safeArticulo = item.articulo.replace(/"/g, '&quot;');
+                return `
+                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 group">
+                    <div class="flex-grow">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wide bg-blue-50 px-2 py-0.5 rounded">
+                                ${item.articulo}
+                            </h3>
+                            <span class="text-[10px] text-gray-400 border border-gray-200 px-1 rounded">${item.marca}</span>
+                        </div>
+                        <p class="text-gray-800 font-medium text-sm leading-tight">
+                            ${highlightMatch(item.descripcion, term)}
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1">Prov: ${item.proveedor}</p>
+                    </div>
+                    <button 
+                        onclick="copyToClipboard(this.getAttribute('data-code'))" 
+                        data-code="${safeArticulo}"
+                        class="opacity-100 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 text-xs bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-600 px-3 py-2 rounded flex items-center gap-1 transition-all whitespace-nowrap" 
+                        title="Copiar Código">
+                        <i data-lucide="copy" class="w-3 h-3"></i> <span class="sm:hidden md:inline">Copiar</span>
+                    </button>
+                </div>
+                `;
+            }).join('');
+
+            resultsContainer.innerHTML = html;
+
+            if (filtered.length > displayLimit) {
+                resultsContainer.innerHTML += `
+                    <div class="text-center text-xs text-gray-500 py-2">
+                        +${filtered.length - displayLimit} resultados más...
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        function highlightMatch(text, term) {
+            if(!term) return text;
+            try {
+                const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${safeTerm})`, 'gi');
+                return text.replace(regex, '<span class="bg-yellow-200 text-gray-900">$1</span>');
+            } catch (e) { return text; }
+        }
+
+        window.copyToClipboard = (text) => {
+            const showToast = () => {
+                const toast = document.createElement('div');
+                toast.textContent = 'Copiado: ' + text;
+                toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded shadow-lg text-sm z-50 animate-bounce';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            };
+
+            const fallbackCopy = (text) => {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    if(document.execCommand('copy')) showToast();
+                } catch (err) {}
+                document.body.removeChild(textArea);
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(showToast).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        // Event Listeners
+        providerSelect.addEventListener('change', () => {
+            updateBrandOptions(); // Actualizar lista de marcas según proveedor
+            filterAndRender();    // Mostrar resultados
+        });
+        
+        brandSelect.addEventListener('change', filterAndRender);
+        searchInput.addEventListener('input', filterAndRender);
+
+        init();
+
+    </script>
+</body>
+</html>
