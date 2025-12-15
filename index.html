@@ -112,7 +112,7 @@
                     type="text" 
                     id="searchInput" 
                     class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
-                    placeholder="Ej: tornillo, cable, 5403..."
+                    placeholder="Ej: merlot, mayonesa, 400 ml..."
                     disabled
                 >
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -165,125 +165,141 @@
 
         lucide.createIcons();
 
-        function init() {
+        // MODIFICADO: init() ahora usa fetch y TextDecoder para garantizar UTF-8
+        async function init() {
             spinner.style.display = 'block';
             statusIndicator.textContent = 'Conectando...';
 
-            // Usamos header: false para analizar manualmente
-            Papa.parse(CSV_URL, {
-                download: true,
-                header: false,
-                delimiter: "", // Auto-Detectar
-                skipEmptyLines: true,
-                complete: function(results) {
-                    const rawRows = results.data;
-                    
-                    if (rawRows.length > 0) {
-                        // 1. Encontrar la fila de encabezados
-                        let headerRowIndex = -1;
-                        
-                        // Buscamos en las primeras 50 filas
-                        for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
-                            const rowStr = JSON.stringify(rawRows[i]).toUpperCase();
-                            const hasArticulo = rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO");
-                            const hasDescripcion = rowStr.includes("DESCRIPCION") || rowStr.includes("DESCRIPCIÓN");
-                            const hasSala = rowStr.includes("SALA") || rowStr.includes("TIENDA");
-                            
-                            if (hasArticulo && (hasDescripcion || hasSala)) {
-                                headerRowIndex = i;
-                                break;
-                            }
-                        }
+            try {
+                // 1. Descargar el archivo manualmente
+                const response = await fetch(CSV_URL);
+                const buffer = await response.arrayBuffer();
 
-                        if (headerRowIndex === -1) {
-                            // Fallback simple
+                // 2. Decodificar explícitamente como UTF-8
+                // Esto soluciona problemas donde el navegador "adivina" mal la codificación
+                const decoder = new TextDecoder("utf-8");
+                const csvString = decoder.decode(buffer);
+
+                // 3. Pasar el texto limpio a PapaParse
+                Papa.parse(csvString, {
+                    header: false,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const rawRows = results.data;
+                        
+                        if (rawRows.length > 0) {
+                            // 1. Encontrar la fila de encabezados
+                            let headerRowIndex = -1;
+                            
+                            // Buscamos en las primeras 50 filas
                             for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
                                 const rowStr = JSON.stringify(rawRows[i]).toUpperCase();
-                                if (rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO")) {
+                                const hasArticulo = rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO");
+                                const hasDescripcion = rowStr.includes("DESCRIPCION") || rowStr.includes("DESCRIPCIÓN");
+                                const hasSala = rowStr.includes("SALA") || rowStr.includes("TIENDA");
+                                
+                                if (hasArticulo && (hasDescripcion || hasSala)) {
                                     headerRowIndex = i;
                                     break;
                                 }
                             }
-                        }
 
-                        if (headerRowIndex === -1) {
-                            console.warn("No se encontró fila de encabezados clara, usando fila 0");
-                            headerRowIndex = 0;
-                        }
+                            if (headerRowIndex === -1) {
+                                // Fallback simple
+                                for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
+                                    const rowStr = JSON.stringify(rawRows[i]).toUpperCase();
+                                    if (rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO")) {
+                                        headerRowIndex = i;
+                                        break;
+                                    }
+                                }
+                            }
 
-                        const headers = rawRows[headerRowIndex];
-                        const dataRows = rawRows.slice(headerRowIndex + 1);
+                            if (headerRowIndex === -1) {
+                                console.warn("No se encontró fila de encabezados clara, usando fila 0");
+                                headerRowIndex = 0;
+                            }
 
-                        // 2. Mapear índices de columnas
-                        const colMap = {
-                            articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
-                            sala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
-                            doh: -1 // Campo nuevo para DOH
-                        };
+                            const headers = rawRows[headerRowIndex];
+                            const dataRows = rawRows.slice(headerRowIndex + 1);
 
-                        headers.forEach((h, index) => {
-                            if (!h) return;
-                            const upper = h.toString().toUpperCase().replace(/['"]+/g, '').trim();
+                            // 2. Mapear índices de columnas
+                            const colMap = {
+                                articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
+                                sala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
+                                doh: -1
+                            };
+
+                            headers.forEach((h, index) => {
+                                if (!h) return;
+                                const upper = h.toString().toUpperCase().replace(/['"]+/g, '').trim();
+                                
+                                // Mapeo
+                                if (upper.includes("ARTICULO") || upper.includes("ARTÍCULO")) colMap.articulo = index;
+                                else if (upper.includes("DESCRIPCION") || upper.includes("DESCRIPCIÓN")) colMap.descripcion = index;
+                                else if (upper.includes("PROVEEDOR")) colMap.proveedor = index;
+                                
+                                // Exactos
+                                else if (upper === "MARCA") colMap.marca = index;
+                                else if (upper === "SUPERVISOR") colMap.supervisor = index;
+                                else if (upper === "NOMBE_SALA" || upper === "NOMBRE_SALA" || upper === "SALA" || upper.includes("TIENDA")) colMap.sala = index;
+                                else if (upper === "DOH") colMap.doh = index;
+
+                                // Stocks
+                                else if (upper.includes("STOCK RANSA")) colMap.stockRansa = index;
+                                else if (upper.includes("EXISTENCIA") || upper === "STOCK" || upper.includes("INV SALA")) colMap.existencia = index;
+                                else if (upper.includes("TRANSITOS") || upper.includes("TRANSITO")) colMap.transitos = index;
+                            });
+
+                            console.log("Mapeo de columnas detectado:", colMap);
+
+                            // 3. Procesar datos
+                            allData = dataRows.map(row => ({
+                                articulo: (row[colMap.articulo] || "N/A").trim(),
+                                descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
+                                proveedor: colMap.proveedor > -1 ? (row[colMap.proveedor] || "N/A").trim() : "N/A",
+                                marca: colMap.marca > -1 ? (row[colMap.marca] || "N/A").trim() : "N/A",
+                                sala: colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar",
+                                supervisor: colMap.supervisor > -1 ? (row[colMap.supervisor] || "N/A").trim() : "N/A",
+                                stockRansa: colMap.stockRansa > -1 ? (row[colMap.stockRansa] || "0").trim() : "0",
+                                existencia: colMap.existencia > -1 ? (row[colMap.existencia] || "0").trim() : "0",
+                                transitos: colMap.transitos > -1 ? (row[colMap.transitos] || "0").trim() : "0",
+                                doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-"
+                            }));
                             
-                            // Mapeo
-                            if (upper.includes("ARTICULO") || upper.includes("ARTÍCULO")) colMap.articulo = index;
-                            else if (upper.includes("DESCRIPCION") || upper.includes("DESCRIPCIÓN")) colMap.descripcion = index;
-                            else if (upper.includes("PROVEEDOR")) colMap.proveedor = index;
+                            // Limpieza
+                            allData = allData.filter(item => item.articulo !== "N/A" && item.articulo !== "");
+
+                            // Inicializar Filtros
+                            initFilters();
+
+                            statusIndicator.textContent = 'En línea';
+                            statusIndicator.className = 'text-xs bg-green-600 px-2 py-1 rounded text-green-100';
+                            enableControls();
                             
-                            // Exactos
-                            else if (upper === "MARCA") colMap.marca = index;
-                            else if (upper === "SUPERVISOR") colMap.supervisor = index;
-                            else if (upper === "NOMBE_SALA" || upper === "NOMBRE_SALA" || upper === "SALA" || upper.includes("TIENDA")) colMap.sala = index;
-                            else if (upper === "DOH") colMap.doh = index; // Detección de DOH
-
-                            // Stocks
-                            else if (upper.includes("STOCK RANSA")) colMap.stockRansa = index;
-                            else if (upper.includes("EXISTENCIA") || upper === "STOCK" || upper.includes("INV SALA")) colMap.existencia = index;
-                            else if (upper.includes("TRANSITOS") || upper.includes("TRANSITO")) colMap.transitos = index;
-                        });
-
-                        console.log("Mapeo de columnas detectado:", colMap);
-
-                        // 3. Procesar datos
-                        allData = dataRows.map(row => ({
-                            articulo: (row[colMap.articulo] || "N/A").trim(),
-                            descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
-                            proveedor: colMap.proveedor > -1 ? (row[colMap.proveedor] || "N/A").trim() : "N/A",
-                            marca: colMap.marca > -1 ? (row[colMap.marca] || "N/A").trim() : "N/A",
-                            sala: colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar",
-                            supervisor: colMap.supervisor > -1 ? (row[colMap.supervisor] || "N/A").trim() : "N/A",
-                            stockRansa: colMap.stockRansa > -1 ? (row[colMap.stockRansa] || "0").trim() : "0",
-                            existencia: colMap.existencia > -1 ? (row[colMap.existencia] || "0").trim() : "0",
-                            transitos: colMap.transitos > -1 ? (row[colMap.transitos] || "0").trim() : "0",
-                            doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-"
-                        }));
-                        
-                        // Limpieza
-                        allData = allData.filter(item => item.articulo !== "N/A" && item.articulo !== "");
-
-                        // Inicializar Filtros
-                        initFilters();
-
-                        statusIndicator.textContent = 'En línea';
-                        statusIndicator.className = 'text-xs bg-green-600 px-2 py-1 rounded text-green-100';
-                        enableControls();
-                        
-                        // Mensaje inicial
-                        resultsContainer.innerHTML = `
-                            <div class="text-center text-gray-400 py-10 bg-white rounded shadow-sm">
-                                <p>Selecciona filtros o busca para ver el inventario.</p>
-                            </div>
-                        `;
-                    } else {
+                            // Mensaje inicial
+                            resultsContainer.innerHTML = `
+                                <div class="text-center text-gray-400 py-10 bg-white rounded shadow-sm">
+                                    <p>Selecciona filtros o busca para ver el inventario.</p>
+                                </div>
+                            `;
+                        } else {
+                            showError();
+                        }
+                        spinner.style.display = 'none';
+                    },
+                    error: function(err) {
+                        console.error(err);
                         showError();
+                        spinner.style.display = 'none';
                     }
-                    spinner.style.display = 'none';
-                },
-                error: function(err) {
-                    console.error(err);
-                    showError();
-                }
-            });
+                });
+
+            } catch (err) {
+                console.error("Error en fetch/decoding:", err);
+                showError();
+                spinner.style.display = 'none';
+            }
         }
 
         function showError() {
@@ -542,4 +558,3 @@
     </script>
 </body>
 </html>
-
