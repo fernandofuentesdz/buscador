@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador de Artículos Avanzado</title>
+    <title>Inventario Maestro</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PapaParse -->
@@ -28,10 +28,10 @@
 
     <!-- Encabezado -->
     <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-10">
-        <div class="container mx-auto max-w-3xl flex items-center justify-between">
+        <div class="container mx-auto max-w-6xl flex items-center justify-between">
             <div class="flex items-center gap-2">
-                <i data-lucide="database" class="w-6 h-6"></i>
-                <h1 class="text-xl font-bold">Catálogo Maestro</h1>
+                <i data-lucide="package-search" class="w-6 h-6"></i>
+                <h1 class="text-xl font-bold">Control de Inventario</h1>
             </div>
             <div id="status-indicator" class="text-xs bg-blue-700 px-2 py-1 rounded text-blue-200">
                 Iniciando...
@@ -40,35 +40,58 @@
     </header>
 
     <!-- Contenido Principal -->
-    <main class="container mx-auto max-w-3xl p-4 flex-grow">
+    <main class="container mx-auto max-w-6xl p-4 flex-grow">
         
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             
-            <!-- Sección de Filtros -->
+            <!-- Sección de Filtros (Grid de 2 columnas: Supervisor/Sala arriba, Prov/Marca abajo) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-100">
-                <!-- Filtro Proveedor -->
+                
+                <!-- Filtro Supervisor -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1" for="providerSelect">
-                        1. Filtrar por Proveedor
-                    </label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Supervisor</label>
                     <div class="relative">
-                        <select id="providerSelect" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-gray-50" disabled>
+                        <select id="supervisorSelect" class="block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md border bg-gray-50" disabled>
                             <option value="">Cargando...</option>
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                            <i data-lucide="filter" class="w-4 h-4"></i>
+                            <i data-lucide="user" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtro Sala -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sala / Tienda</label>
+                    <div class="relative">
+                        <select id="salaSelect" class="block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md border bg-gray-50" disabled>
+                            <option value="">Cargando...</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <i data-lucide="store" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtro Proveedor -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Proveedor</label>
+                    <div class="relative">
+                        <select id="providerSelect" class="block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md border bg-gray-50" disabled>
+                            <option value="">Cargando...</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <i data-lucide="truck" class="w-4 h-4"></i>
                         </div>
                     </div>
                 </div>
 
                 <!-- Filtro Marca -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1" for="brandSelect">
-                        2. Filtrar por Marca
-                    </label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Marca</label>
                     <div class="relative">
-                        <select id="brandSelect" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-gray-50" disabled>
-                            <option value="">Todas las marcas</option>
+                        <select id="brandSelect" class="block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md border bg-gray-50" disabled>
+                            <option value="">Cargando...</option>
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                             <i data-lucide="tag" class="w-4 h-4"></i>
@@ -79,7 +102,7 @@
 
             <!-- Buscador por Texto -->
             <label class="block text-sm font-bold text-gray-700 mb-2" for="search">
-                3. Buscar por Descripción o Código
+                Búsqueda Rápida (Descripción o Código)
             </label>
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -89,7 +112,7 @@
                     type="text" 
                     id="searchInput" 
                     class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
-                    placeholder="Opcional: Escribe para descripción (ej: lasagña, 400ml)..."
+                    placeholder="Ej: tornillo, cable, 5403..."
                     disabled
                 >
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -99,10 +122,10 @@
             
             <div class="flex justify-between items-center mt-2">
                 <p class="text-xs text-gray-500">
-                    Mostrando <span id="count" class="font-bold">0</span> resultados.
+                    Resultados: <span id="count" class="font-bold">0</span>
                 </p>
-                <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-medium hidden" id="resetBtn">
-                    Limpiar filtros
+                <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-medium hidden flex items-center gap-1" id="resetBtn">
+                    <i data-lucide="x-circle" class="w-3 h-3"></i> Limpiar todo
                 </button>
             </div>
         </div>
@@ -122,17 +145,18 @@
     </footer>
 
     <script>
-        const SHEET_ID = '1uQjHorjJMygTZx-ZX8kOCgxeDusvdomiNud4rR1k6ew';
-        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/e/2PACX-1vSHY2DFyquIGunl7Q_ggVwnHRebdL7eJEG2Iec_HiTmY7GZEtQgFvRy_86ZS5SVWUGjKjLQ9BJ12aQW/pub?output=csv`;
 
         // Estado
         let allData = [];
-        let uniqueProviders = new Set();
         
         // Referencias DOM
         const searchInput = document.getElementById('searchInput');
         const providerSelect = document.getElementById('providerSelect');
         const brandSelect = document.getElementById('brandSelect');
+        const salaSelect = document.getElementById('salaSelect');
+        const supervisorSelect = document.getElementById('supervisorSelect');
+        
         const resultsContainer = document.getElementById('resultsContainer');
         const countSpan = document.getElementById('count');
         const spinner = document.getElementById('loadingSpinner');
@@ -143,48 +167,99 @@
 
         function init() {
             spinner.style.display = 'block';
-            statusIndicator.textContent = 'Cargando datos...';
+            statusIndicator.textContent = 'Conectando...';
 
+            // Usamos header: false para analizar manualmente
             Papa.parse(CSV_URL, {
                 download: true,
-                header: true,
+                header: false,
+                delimiter: "", // Auto-Detectar
                 skipEmptyLines: true,
                 complete: function(results) {
-                    const rawData = results.data;
+                    const rawRows = results.data;
                     
-                    if (rawData.length > 0) {
-                        const headers = Object.keys(rawData[0]);
+                    if (rawRows.length > 0) {
+                        // 1. Encontrar la fila de encabezados
+                        let headerRowIndex = -1;
                         
-                        // Mapeo de columnas con prioridad a coincidencia exacta
-                        const keyMap = {};
-                        
-                        // 1. Búsqueda exacta primero
-                        headers.forEach(h => {
-                            const normalized = h.toUpperCase().trim();
-                            if(normalized === "ARTICULO" || normalized === "ARTÍCULO") keyMap.articulo = h;
-                            if(normalized === "DESCRIPCION" || normalized === "DESCRIPCIÓN") keyMap.descripcion = h;
-                            if(normalized === "PROVEEDOR") keyMap.proveedor = h;
-                            if(normalized === "MARCA") keyMap.marca = h;
+                        // Buscamos en las primeras 50 filas
+                        for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
+                            const rowStr = JSON.stringify(rawRows[i]).toUpperCase();
+                            const hasArticulo = rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO");
+                            const hasDescripcion = rowStr.includes("DESCRIPCION") || rowStr.includes("DESCRIPCIÓN");
+                            const hasSala = rowStr.includes("SALA") || rowStr.includes("TIENDA");
+                            
+                            if (hasArticulo && (hasDescripcion || hasSala)) {
+                                headerRowIndex = i;
+                                break;
+                            }
+                        }
+
+                        if (headerRowIndex === -1) {
+                            // Fallback simple
+                            for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
+                                const rowStr = JSON.stringify(rawRows[i]).toUpperCase();
+                                if (rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO")) {
+                                    headerRowIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (headerRowIndex === -1) {
+                            console.warn("No se encontró fila de encabezados clara, usando fila 0");
+                            headerRowIndex = 0;
+                        }
+
+                        const headers = rawRows[headerRowIndex];
+                        const dataRows = rawRows.slice(headerRowIndex + 1);
+
+                        // 2. Mapear índices de columnas
+                        const colMap = {
+                            articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
+                            sala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
+                            doh: -1 // Campo nuevo para DOH
+                        };
+
+                        headers.forEach((h, index) => {
+                            if (!h) return;
+                            const upper = h.toString().toUpperCase().replace(/['"]+/g, '').trim();
+                            
+                            // Mapeo
+                            if (upper.includes("ARTICULO") || upper.includes("ARTÍCULO")) colMap.articulo = index;
+                            else if (upper.includes("DESCRIPCION") || upper.includes("DESCRIPCIÓN")) colMap.descripcion = index;
+                            else if (upper.includes("PROVEEDOR")) colMap.proveedor = index;
+                            
+                            // Exactos
+                            else if (upper === "MARCA") colMap.marca = index;
+                            else if (upper === "SUPERVISOR") colMap.supervisor = index;
+                            else if (upper === "NOMBE_SALA" || upper === "NOMBRE_SALA" || upper === "SALA" || upper.includes("TIENDA")) colMap.sala = index;
+                            else if (upper === "DOH") colMap.doh = index; // Detección de DOH
+
+                            // Stocks
+                            else if (upper.includes("STOCK RANSA")) colMap.stockRansa = index;
+                            else if (upper.includes("EXISTENCIA") || upper === "STOCK" || upper.includes("INV SALA")) colMap.existencia = index;
+                            else if (upper.includes("TRANSITOS") || upper.includes("TRANSITO")) colMap.transitos = index;
                         });
 
-                        // 2. Búsqueda flexible si no se encontró la exacta
-                        headers.forEach(h => {
-                            const upper = h.toUpperCase();
-                            if(!keyMap.articulo && (upper.includes("ARTICULO") || upper.includes("ARTÍCULO"))) keyMap.articulo = h;
-                            if(!keyMap.descripcion && (upper.includes("DESCRIPCION") || upper.includes("DESCRIPCIÓN"))) keyMap.descripcion = h;
-                            if(!keyMap.proveedor && upper.includes("PROVEEDOR")) keyMap.proveedor = h;
-                            if(!keyMap.marca && upper.includes("MARCA")) keyMap.marca = h;
-                        });
+                        console.log("Mapeo de columnas detectado:", colMap);
 
-                        console.log("Mapeo de columnas detectado:", keyMap);
-
-                        // Procesar datos
-                        allData = rawData.map(row => ({
-                            articulo: (row[keyMap.articulo] || "N/A").trim(),
-                            descripcion: (row[keyMap.descripcion] || "Sin descripción").trim(),
-                            proveedor: (row[keyMap.proveedor] || "N/A").trim(),
-                            marca: (row[keyMap.marca] || "N/A").trim()
+                        // 3. Procesar datos
+                        allData = dataRows.map(row => ({
+                            articulo: (row[colMap.articulo] || "N/A").trim(),
+                            descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
+                            proveedor: colMap.proveedor > -1 ? (row[colMap.proveedor] || "N/A").trim() : "N/A",
+                            marca: colMap.marca > -1 ? (row[colMap.marca] || "N/A").trim() : "N/A",
+                            sala: colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar",
+                            supervisor: colMap.supervisor > -1 ? (row[colMap.supervisor] || "N/A").trim() : "N/A",
+                            stockRansa: colMap.stockRansa > -1 ? (row[colMap.stockRansa] || "0").trim() : "0",
+                            existencia: colMap.existencia > -1 ? (row[colMap.existencia] || "0").trim() : "0",
+                            transitos: colMap.transitos > -1 ? (row[colMap.transitos] || "0").trim() : "0",
+                            doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-"
                         }));
+                        
+                        // Limpieza
+                        allData = allData.filter(item => item.articulo !== "N/A" && item.articulo !== "");
 
                         // Inicializar Filtros
                         initFilters();
@@ -193,10 +268,10 @@
                         statusIndicator.className = 'text-xs bg-green-600 px-2 py-1 rounded text-green-100';
                         enableControls();
                         
-                        // Render inicial
+                        // Mensaje inicial
                         resultsContainer.innerHTML = `
                             <div class="text-center text-gray-400 py-10 bg-white rounded shadow-sm">
-                                <p>Selecciona un Proveedor o Marca, o escribe en el buscador.</p>
+                                <p>Selecciona filtros o busca para ver el inventario.</p>
                             </div>
                         `;
                     } else {
@@ -214,69 +289,85 @@
         function showError() {
             statusIndicator.textContent = 'Error';
             statusIndicator.className = 'text-xs bg-red-600 px-2 py-1 rounded text-red-100';
-            resultsContainer.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded">Error al cargar datos.</div>`;
+            resultsContainer.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded">Error al cargar datos. Verifica la conexión a internet.</div>`;
         }
 
         function enableControls() {
             searchInput.disabled = false;
             providerSelect.disabled = false;
             brandSelect.disabled = false;
+            salaSelect.disabled = false;
+            supervisorSelect.disabled = false;
         }
 
         // --- Lógica de Listas Desplegables ---
 
         function initFilters() {
-            // Obtener proveedores únicos y filtrar vacíos o N/A
-            const providers = [...new Set(allData.map(item => item.proveedor))]
-                .filter(p => p && p !== "N/A")
-                .sort();
-            
-            // Llenar Select de Proveedores
-            providerSelect.innerHTML = '<option value="">Todos los proveedores</option>';
-            providers.forEach(p => {
-                const option = document.createElement('option');
-                option.value = p;
-                option.textContent = p;
-                providerSelect.appendChild(option);
-            });
+            // Llenar Proveedores
+            const providers = [...new Set(allData.map(item => item.proveedor))].filter(p => p && p !== "N/A").sort();
+            populateSelect(providerSelect, providers, "Todos");
 
-            // Llenar Select de Marcas (Inicialmente todas)
+            // Llenar Supervisores
+            const supervisors = [...new Set(allData.map(item => item.supervisor))].filter(s => s && s !== "N/A").sort();
+            populateSelect(supervisorSelect, supervisors, "Todos");
+
+            // Llenar Salas (Inicialmente todas, luego se filtra por supervisor)
+            updateSalaOptions();
+
+            // Inicializar marcas (dependientes de proveedor)
             updateBrandOptions();
+        }
+
+        function populateSelect(selectElement, options, defaultText = "Todos") {
+            const currentVal = selectElement.value;
+            selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                selectElement.appendChild(option);
+            });
+            // Si la opción seleccionada todavía existe en la nueva lista, mantenerla
+            if(options.includes(currentVal)) selectElement.value = currentVal;
+        }
+
+        // Actualizar Salas basándose en el Supervisor seleccionado
+        function updateSalaOptions() {
+            const selectedSupervisor = supervisorSelect.value;
+            // Si hay supervisor, filtramos los datos para obtener solo las salas de ese supervisor
+            let availableData = selectedSupervisor ? allData.filter(item => item.supervisor === selectedSupervisor) : allData;
+            
+            const salas = [...new Set(availableData.map(item => item.sala))].filter(s => s && s !== "N/A").sort();
+            
+            const current = salaSelect.value;
+            populateSelect(salaSelect, salas, "Todas");
+            
+            // Mantener selección si es válida, sino resetear
+            if(salas.includes(current)) {
+                salaSelect.value = current;
+            } else {
+                salaSelect.value = "";
+            }
         }
 
         function updateBrandOptions() {
             const selectedProvider = providerSelect.value;
+            let availableData = selectedProvider ? allData.filter(item => item.proveedor === selectedProvider) : allData;
+            const brands = [...new Set(availableData.map(item => item.marca))].filter(b => b && b !== "N/A").sort();
             
-            // Filtrar datos para ver qué marcas están disponibles bajo este proveedor
-            let availableData = allData;
-            if (selectedProvider) {
-                availableData = allData.filter(item => item.proveedor === selectedProvider);
-            }
-
-            const brands = [...new Set(availableData.map(item => item.marca))]
-                .filter(b => b && b !== "N/A")
-                .sort();
-
-            // Reconstruir select de marcas
-            const currentBrand = brandSelect.value;
-            brandSelect.innerHTML = '<option value="">Todas las marcas</option>';
-            brands.forEach(b => {
-                const option = document.createElement('option');
-                option.value = b;
-                option.textContent = b;
-                brandSelect.appendChild(option);
-            });
-
-            // Intentar restaurar selección previa si la marca aún existe en la nueva lista
-            if (brands.includes(currentBrand)) {
-                brandSelect.value = currentBrand;
-            }
+            const current = brandSelect.value;
+            populateSelect(brandSelect, brands);
+            if(brands.includes(current)) brandSelect.value = current;
         }
 
         function resetFilters() {
             providerSelect.value = "";
             brandSelect.value = "";
+            supervisorSelect.value = "";
+            // updateSalaOptions() se encargará de resetear y repoblar salaSelect
             searchInput.value = "";
+            
+            updateSalaOptions();
             updateBrandOptions();
             filterAndRender();
         }
@@ -287,9 +378,11 @@
             const term = searchInput.value.toLowerCase().trim();
             const provider = providerSelect.value;
             const brand = brandSelect.value;
+            const sala = salaSelect.value;
+            const supervisor = supervisorSelect.value;
 
-            // Mostrar botón reset si hay filtros activos
-            if(term || provider || brand) {
+            // Control del botón Reset
+            if(term || provider || brand || sala || supervisor) {
                 resetBtn.classList.remove('hidden');
             } else {
                 resetBtn.classList.add('hidden');
@@ -302,25 +395,26 @@
                 return;
             }
 
-            // Aplicar los 3 filtros
+            // Filtrado
             const filtered = allData.filter(item => {
                 const matchProvider = provider === "" || item.proveedor === provider;
                 const matchBrand = brand === "" || item.marca === brand;
+                const matchSala = sala === "" || item.sala === sala;
+                const matchSupervisor = supervisor === "" || item.supervisor === supervisor;
                 const matchSearch = term === "" || 
                                     item.descripcion.toLowerCase().includes(term) || 
                                     item.articulo.toLowerCase().includes(term);
                 
-                return matchProvider && matchBrand && matchSearch;
+                return matchProvider && matchBrand && matchSala && matchSupervisor && matchSearch;
             });
 
             countSpan.textContent = filtered.length;
 
-            // Renderizar
             if (filtered.length === 0) {
                 resultsContainer.innerHTML = `
                     <div class="text-center text-gray-500 py-8 bg-white rounded shadow-sm">
                         <i data-lucide="frown" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i>
-                        <p>No hay resultados con estos filtros.</p>
+                        <p>No hay resultados.</p>
                     </div>
                 `;
                 lucide.createIcons();
@@ -330,27 +424,56 @@
             const displayLimit = 100;
             const html = filtered.slice(0, displayLimit).map(item => {
                 const safeArticulo = item.articulo.replace(/"/g, '&quot;');
+                
+                const ransa = item.stockRansa || '0';
+                const existencia = item.existencia || '0';
+                const transitos = item.transitos || '0';
+                const doh = item.doh || '-';
+
                 return `
-                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 group">
-                    <div class="flex-grow">
-                        <div class="flex items-center gap-2 mb-1">
-                            <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wide bg-blue-50 px-2 py-0.5 rounded">
-                                ${item.articulo}
-                            </h3>
-                            <span class="text-[10px] text-gray-400 border border-gray-200 px-1 rounded">${item.marca}</span>
+                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500 hover:shadow-md transition-all flex flex-col gap-3 group">
+                    <div class="flex flex-col sm:flex-row justify-between items-start gap-2">
+                        <div class="flex-grow">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                    ${item.articulo}
+                                </span>
+                                <span class="text-[10px] text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded bg-gray-50">${item.marca}</span>
+                                <span class="text-[10px] text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded bg-gray-50 truncate max-w-[100px]">${item.sala}</span>
+                            </div>
+                            <p class="text-gray-800 font-medium text-sm leading-snug">
+                                ${highlightMatch(item.descripcion, term)}
+                            </p>
+                            <p class="text-[10px] text-gray-400 mt-1">Supervisado por: ${item.supervisor}</p>
                         </div>
-                        <p class="text-gray-800 font-medium text-sm leading-tight">
-                            ${highlightMatch(item.descripcion, term)}
-                        </p>
-                        <p class="text-xs text-gray-400 mt-1">Prov: ${item.proveedor}</p>
+                        <button 
+                            onclick="copyToClipboard(this.getAttribute('data-code'))" 
+                            data-code="${safeArticulo}"
+                            class="self-start sm:self-center shrink-0 text-xs bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-600 px-3 py-1.5 rounded flex items-center gap-1 transition-all" 
+                            title="Copiar Código">
+                            <i data-lucide="copy" class="w-3 h-3"></i> <span class="hidden sm:inline">Copiar</span>
+                        </button>
                     </div>
-                    <button 
-                        onclick="copyToClipboard(this.getAttribute('data-code'))" 
-                        data-code="${safeArticulo}"
-                        class="opacity-100 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 text-xs bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-600 px-3 py-2 rounded flex items-center gap-1 transition-all whitespace-nowrap" 
-                        title="Copiar Código">
-                        <i data-lucide="copy" class="w-3 h-3"></i> <span class="sm:hidden md:inline">Copiar</span>
-                    </button>
+
+                    <!-- Grid de Información actualizado a 4 columnas -->
+                    <div class="grid grid-cols-4 gap-2 mt-1 bg-gray-50 p-2 rounded border border-gray-100">
+                        <div class="text-center">
+                            <span class="block text-[10px] text-gray-400 uppercase tracking-wider">Ransa</span>
+                            <span class="block font-bold text-gray-700 ${ransa !== '0' ? 'text-blue-600' : ''}">${ransa}</span>
+                        </div>
+                        <div class="text-center border-l border-gray-200">
+                            <span class="block text-[10px] text-gray-400 uppercase tracking-wider">Inv Sala</span>
+                            <span class="block font-bold text-gray-700 ${existencia !== '0' ? 'text-green-600' : ''}">${existencia}</span>
+                        </div>
+                        <div class="text-center border-l border-gray-200">
+                            <span class="block text-[10px] text-gray-400 uppercase tracking-wider">Transitos</span>
+                            <span class="block font-bold text-gray-700 ${transitos !== '0' ? 'text-orange-500' : ''}">${transitos}</span>
+                        </div>
+                        <div class="text-center border-l border-gray-200">
+                            <span class="block text-[10px] text-gray-400 uppercase tracking-wider">DOH</span>
+                            <span class="block font-bold text-gray-700 ${doh !== '-' ? 'text-purple-600' : ''}">${doh}</span>
+                        </div>
+                    </div>
                 </div>
                 `;
             }).join('');
@@ -407,12 +530,11 @@
         }
 
         // Event Listeners
-        providerSelect.addEventListener('change', () => {
-            updateBrandOptions(); // Actualizar lista de marcas según proveedor
-            filterAndRender();    // Mostrar resultados
-        });
-        
+        providerSelect.addEventListener('change', () => { updateBrandOptions(); filterAndRender(); });
         brandSelect.addEventListener('change', filterAndRender);
+        salaSelect.addEventListener('change', filterAndRender);
+        // Cuando cambia el supervisor, actualizamos las salas disponibles
+        supervisorSelect.addEventListener('change', () => { updateSalaOptions(); filterAndRender(); });
         searchInput.addEventListener('input', filterAndRender);
 
         init();
