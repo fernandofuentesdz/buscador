@@ -31,10 +31,18 @@
         <div class="container mx-auto max-w-6xl flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <i data-lucide="package-search" class="w-6 h-6"></i>
-                <h1 class="text-xl font-bold">Control de Inventario</h1>
+                <h1 class="text-xl font-bold hidden sm:block">Control de Inventario</h1>
+                <h1 class="text-xl font-bold sm:hidden">Inventario</h1>
             </div>
-            <div id="status-indicator" class="text-xs bg-blue-700 px-2 py-1 rounded text-blue-200">
-                Iniciando...
+            
+            <!-- Estado y Fecha (Contenedor Flex) -->
+            <div class="flex items-center gap-3">
+                <div id="last-update" class="text-xs text-blue-100 font-medium hidden text-right">
+                    <!-- Aquí se insertará la fecha -->
+                </div>
+                <div id="status-indicator" class="text-xs bg-blue-700 px-2 py-1 rounded text-blue-200 whitespace-nowrap">
+                    Iniciando...
+                </div>
             </div>
         </div>
     </header>
@@ -44,7 +52,7 @@
         
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             
-            <!-- Sección de Filtros (Grid de 2 columnas: Supervisor/Sala arriba, Prov/Marca abajo) -->
+            <!-- Sección de Filtros (Grid de 2 columnas) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-100">
                 
                 <!-- Filtro Supervisor -->
@@ -112,7 +120,7 @@
                     type="text" 
                     id="searchInput" 
                     class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
-                    placeholder="Ej: merlot, mayonesa, 400 ml..."
+                    placeholder="Ej: tornillo, merlot, 400 ml, dispensador..."
                     disabled
                 >
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -156,6 +164,7 @@
         const brandSelect = document.getElementById('brandSelect');
         const salaSelect = document.getElementById('salaSelect');
         const supervisorSelect = document.getElementById('supervisorSelect');
+        const lastUpdateDiv = document.getElementById('last-update');
         
         const resultsContainer = document.getElementById('resultsContainer');
         const countSpan = document.getElementById('count');
@@ -165,7 +174,6 @@
 
         lucide.createIcons();
 
-        // MODIFICADO: init() ahora usa fetch y TextDecoder para garantizar UTF-8
         async function init() {
             spinner.style.display = 'block';
             statusIndicator.textContent = 'Conectando...';
@@ -176,7 +184,6 @@
                 const buffer = await response.arrayBuffer();
 
                 // 2. Decodificar explícitamente como UTF-8
-                // Esto soluciona problemas donde el navegador "adivina" mal la codificación
                 const decoder = new TextDecoder("utf-8");
                 const csvString = decoder.decode(buffer);
 
@@ -191,7 +198,6 @@
                             // 1. Encontrar la fila de encabezados
                             let headerRowIndex = -1;
                             
-                            // Buscamos en las primeras 50 filas
                             for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
                                 const rowStr = JSON.stringify(rawRows[i]).toUpperCase();
                                 const hasArticulo = rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO");
@@ -205,7 +211,7 @@
                             }
 
                             if (headerRowIndex === -1) {
-                                // Fallback simple
+                                // Fallback
                                 for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
                                     const rowStr = JSON.stringify(rawRows[i]).toUpperCase();
                                     if (rowStr.includes("ARTICULO") || rowStr.includes("ARTÍCULO")) {
@@ -227,25 +233,25 @@
                             const colMap = {
                                 articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
                                 sala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
-                                doh: -1
+                                doh: -1, fecha: -1 // Agregado campo fecha
                             };
 
                             headers.forEach((h, index) => {
                                 if (!h) return;
                                 const upper = h.toString().toUpperCase().replace(/['"]+/g, '').trim();
                                 
-                                // Mapeo
                                 if (upper.includes("ARTICULO") || upper.includes("ARTÍCULO")) colMap.articulo = index;
                                 else if (upper.includes("DESCRIPCION") || upper.includes("DESCRIPCIÓN")) colMap.descripcion = index;
                                 else if (upper.includes("PROVEEDOR")) colMap.proveedor = index;
                                 
-                                // Exactos
                                 else if (upper === "MARCA") colMap.marca = index;
                                 else if (upper === "SUPERVISOR") colMap.supervisor = index;
                                 else if (upper === "NOMBE_SALA" || upper === "NOMBRE_SALA" || upper === "SALA" || upper.includes("TIENDA")) colMap.sala = index;
                                 else if (upper === "DOH") colMap.doh = index;
 
-                                // Stocks
+                                // Detección de fecha de actualización
+                                else if (upper.includes("FECHA") || upper.includes("ACTUALIZACION")) colMap.fecha = index;
+
                                 else if (upper.includes("STOCK RANSA")) colMap.stockRansa = index;
                                 else if (upper.includes("EXISTENCIA") || upper === "STOCK" || upper.includes("INV SALA")) colMap.existencia = index;
                                 else if (upper.includes("TRANSITOS") || upper.includes("TRANSITO")) colMap.transitos = index;
@@ -254,30 +260,45 @@
                             console.log("Mapeo de columnas detectado:", colMap);
 
                             // 3. Procesar datos
-                            allData = dataRows.map(row => ({
-                                articulo: (row[colMap.articulo] || "N/A").trim(),
-                                descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
-                                proveedor: colMap.proveedor > -1 ? (row[colMap.proveedor] || "N/A").trim() : "N/A",
-                                marca: colMap.marca > -1 ? (row[colMap.marca] || "N/A").trim() : "N/A",
-                                sala: colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar",
-                                supervisor: colMap.supervisor > -1 ? (row[colMap.supervisor] || "N/A").trim() : "N/A",
-                                stockRansa: colMap.stockRansa > -1 ? (row[colMap.stockRansa] || "0").trim() : "0",
-                                existencia: colMap.existencia > -1 ? (row[colMap.existencia] || "0").trim() : "0",
-                                transitos: colMap.transitos > -1 ? (row[colMap.transitos] || "0").trim() : "0",
-                                doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-"
-                            }));
+                            let detectedDate = null;
+
+                            allData = dataRows.map(row => {
+                                // Intentar capturar la fecha de la primera fila válida que tenga dato
+                                if (!detectedDate && colMap.fecha > -1 && row[colMap.fecha]) {
+                                    detectedDate = row[colMap.fecha].trim();
+                                }
+
+                                return {
+                                    articulo: (row[colMap.articulo] || "N/A").trim(),
+                                    descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
+                                    proveedor: colMap.proveedor > -1 ? (row[colMap.proveedor] || "N/A").trim() : "N/A",
+                                    marca: colMap.marca > -1 ? (row[colMap.marca] || "N/A").trim() : "N/A",
+                                    sala: colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar",
+                                    supervisor: colMap.supervisor > -1 ? (row[colMap.supervisor] || "N/A").trim() : "N/A",
+                                    stockRansa: colMap.stockRansa > -1 ? (row[colMap.stockRansa] || "0").trim() : "0",
+                                    existencia: colMap.existencia > -1 ? (row[colMap.existencia] || "0").trim() : "0",
+                                    transitos: colMap.transitos > -1 ? (row[colMap.transitos] || "0").trim() : "0",
+                                    doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-"
+                                };
+                            });
                             
-                            // Limpieza
                             allData = allData.filter(item => item.articulo !== "N/A" && item.articulo !== "");
 
-                            // Inicializar Filtros
+                            // Mostrar Fecha de Actualización
+                            // Si se encontró una columna FECHA, se usa ese valor. Si no, la hora actual.
+                            if (!detectedDate) {
+                                const now = new Date();
+                                detectedDate = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+                            lastUpdateDiv.innerHTML = `Actualizado: <span class="font-bold">${detectedDate}</span>`;
+                            lastUpdateDiv.classList.remove('hidden');
+
                             initFilters();
 
                             statusIndicator.textContent = 'En línea';
                             statusIndicator.className = 'text-xs bg-green-600 px-2 py-1 rounded text-green-100';
                             enableControls();
                             
-                            // Mensaje inicial
                             resultsContainer.innerHTML = `
                                 <div class="text-center text-gray-400 py-10 bg-white rounded shadow-sm">
                                     <p>Selecciona filtros o busca para ver el inventario.</p>
@@ -319,18 +340,13 @@
         // --- Lógica de Listas Desplegables ---
 
         function initFilters() {
-            // Llenar Proveedores
             const providers = [...new Set(allData.map(item => item.proveedor))].filter(p => p && p !== "N/A").sort();
             populateSelect(providerSelect, providers, "Todos");
 
-            // Llenar Supervisores
             const supervisors = [...new Set(allData.map(item => item.supervisor))].filter(s => s && s !== "N/A").sort();
             populateSelect(supervisorSelect, supervisors, "Todos");
 
-            // Llenar Salas (Inicialmente todas, luego se filtra por supervisor)
             updateSalaOptions();
-
-            // Inicializar marcas (dependientes de proveedor)
             updateBrandOptions();
         }
 
@@ -343,14 +359,11 @@
                 option.textContent = opt;
                 selectElement.appendChild(option);
             });
-            // Si la opción seleccionada todavía existe en la nueva lista, mantenerla
             if(options.includes(currentVal)) selectElement.value = currentVal;
         }
 
-        // Actualizar Salas basándose en el Supervisor seleccionado
         function updateSalaOptions() {
             const selectedSupervisor = supervisorSelect.value;
-            // Si hay supervisor, filtramos los datos para obtener solo las salas de ese supervisor
             let availableData = selectedSupervisor ? allData.filter(item => item.supervisor === selectedSupervisor) : allData;
             
             const salas = [...new Set(availableData.map(item => item.sala))].filter(s => s && s !== "N/A").sort();
@@ -358,7 +371,6 @@
             const current = salaSelect.value;
             populateSelect(salaSelect, salas, "Todas");
             
-            // Mantener selección si es válida, sino resetear
             if(salas.includes(current)) {
                 salaSelect.value = current;
             } else {
@@ -380,7 +392,6 @@
             providerSelect.value = "";
             brandSelect.value = "";
             supervisorSelect.value = "";
-            // updateSalaOptions() se encargará de resetear y repoblar salaSelect
             searchInput.value = "";
             
             updateSalaOptions();
@@ -397,7 +408,6 @@
             const sala = salaSelect.value;
             const supervisor = supervisorSelect.value;
 
-            // Control del botón Reset
             if(term || provider || brand || sala || supervisor) {
                 resetBtn.classList.remove('hidden');
             } else {
@@ -411,7 +421,6 @@
                 return;
             }
 
-            // Filtrado
             const filtered = allData.filter(item => {
                 const matchProvider = provider === "" || item.proveedor === provider;
                 const matchBrand = brand === "" || item.marca === brand;
@@ -471,7 +480,6 @@
                         </button>
                     </div>
 
-                    <!-- Grid de Información actualizado a 4 columnas -->
                     <div class="grid grid-cols-4 gap-2 mt-1 bg-gray-50 p-2 rounded border border-gray-100">
                         <div class="text-center">
                             <span class="block text-[10px] text-gray-400 uppercase tracking-wider">Ransa</span>
@@ -545,11 +553,9 @@
             }
         }
 
-        // Event Listeners
         providerSelect.addEventListener('change', () => { updateBrandOptions(); filterAndRender(); });
         brandSelect.addEventListener('change', filterAndRender);
         salaSelect.addEventListener('change', filterAndRender);
-        // Cuando cambia el supervisor, actualizamos las salas disponibles
         supervisorSelect.addEventListener('change', () => { updateSalaOptions(); filterAndRender(); });
         searchInput.addEventListener('input', filterAndRender);
 
