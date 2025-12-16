@@ -120,7 +120,7 @@
                     type="text" 
                     id="searchInput" 
                     class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
-                    placeholder="Ej: tornillo, merlot, 400 ml, dispensador..."
+                    placeholder="Ej: tornillo, merlot, dispensador, 400 ml..."
                     disabled
                 >
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -232,8 +232,8 @@
                             // 2. Mapear índices de columnas
                             const colMap = {
                                 articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
-                                sala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
-                                doh: -1, fecha: -1 // Agregado campo fecha
+                                sala: -1, codSala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
+                                doh: -1, fecha: -1 
                             };
 
                             headers.forEach((h, index) => {
@@ -247,6 +247,7 @@
                                 else if (upper === "MARCA") colMap.marca = index;
                                 else if (upper === "SUPERVISOR") colMap.supervisor = index;
                                 else if (upper === "NOMBE_SALA" || upper === "NOMBRE_SALA" || upper === "SALA" || upper.includes("TIENDA")) colMap.sala = index;
+                                else if (upper === "COD_SALA") colMap.codSala = index; // Detectar código de sala
                                 else if (upper === "DOH") colMap.doh = index;
 
                                 // Detección de fecha de actualización
@@ -268,12 +269,18 @@
                                     detectedDate = row[colMap.fecha].trim();
                                 }
 
+                                // Construir nombre de sala con código
+                                const salaNombre = colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar";
+                                const salaCod = colMap.codSala > -1 ? (row[colMap.codSala] || "").trim() : "";
+                                // AJUSTE: Agregado prefijo "Cod: "
+                                const salaCompleta = salaCod ? `${salaNombre} (Cod: ${salaCod})` : salaNombre;
+
                                 return {
                                     articulo: (row[colMap.articulo] || "N/A").trim(),
                                     descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
                                     proveedor: colMap.proveedor > -1 ? (row[colMap.proveedor] || "N/A").trim() : "N/A",
                                     marca: colMap.marca > -1 ? (row[colMap.marca] || "N/A").trim() : "N/A",
-                                    sala: colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar",
+                                    sala: salaCompleta, // Usamos el nombre combinado
                                     supervisor: colMap.supervisor > -1 ? (row[colMap.supervisor] || "N/A").trim() : "N/A",
                                     stockRansa: colMap.stockRansa > -1 ? (row[colMap.stockRansa] || "0").trim() : "0",
                                     existencia: colMap.existencia > -1 ? (row[colMap.existencia] || "0").trim() : "0",
@@ -564,3 +571,4 @@
     </script>
 </body>
 </html>
+
