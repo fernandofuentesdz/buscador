@@ -233,7 +233,7 @@
                             const colMap = {
                                 articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
                                 sala: -1, codSala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
-                                doh: -1, fecha: -1 
+                                doh: -1, fecha: -1, statusMarca: -1, barra: -1 // Agregado campo barra
                             };
 
                             headers.forEach((h, index) => {
@@ -247,10 +247,15 @@
                                 else if (upper === "MARCA") colMap.marca = index;
                                 else if (upper === "SUPERVISOR") colMap.supervisor = index;
                                 else if (upper === "NOMBE_SALA" || upper === "NOMBRE_SALA" || upper === "SALA" || upper.includes("TIENDA")) colMap.sala = index;
-                                else if (upper === "COD_SALA") colMap.codSala = index; // Detectar código de sala
+                                else if (upper === "COD_SALA") colMap.codSala = index;
                                 else if (upper === "DOH") colMap.doh = index;
 
-                                // Detección de fecha de actualización
+                                // Detección de BARRA (Código de barras)
+                                else if (upper === "BARRA" || upper.includes("CODIGO_BARRA") || upper === "EAN" || upper === "UPC") colMap.barra = index;
+
+                                // Detección de STATUS MARCA
+                                else if (upper === "STATUS MARCA" || upper === "ESTATUS MARCA" || upper === "STATUS_MARCA") colMap.statusMarca = index;
+
                                 else if (upper.includes("FECHA") || upper.includes("ACTUALIZACION")) colMap.fecha = index;
 
                                 else if (upper.includes("STOCK RANSA")) colMap.stockRansa = index;
@@ -264,15 +269,12 @@
                             let detectedDate = null;
 
                             allData = dataRows.map(row => {
-                                // Intentar capturar la fecha de la primera fila válida que tenga dato
                                 if (!detectedDate && colMap.fecha > -1 && row[colMap.fecha]) {
                                     detectedDate = row[colMap.fecha].trim();
                                 }
 
-                                // Construir nombre de sala con código
                                 const salaNombre = colMap.sala > -1 ? (row[colMap.sala] || "Sin Asignar").trim() : "Sin Asignar";
                                 const salaCod = colMap.codSala > -1 ? (row[colMap.codSala] || "").trim() : "";
-                                // AJUSTE: Agregado prefijo "Cod: "
                                 const salaCompleta = salaCod ? `${salaNombre} (Cod: ${salaCod})` : salaNombre;
 
                                 return {
@@ -280,12 +282,14 @@
                                     descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
                                     proveedor: colMap.proveedor > -1 ? (row[colMap.proveedor] || "N/A").trim() : "N/A",
                                     marca: colMap.marca > -1 ? (row[colMap.marca] || "N/A").trim() : "N/A",
-                                    sala: salaCompleta, // Usamos el nombre combinado
+                                    sala: salaCompleta,
                                     supervisor: colMap.supervisor > -1 ? (row[colMap.supervisor] || "N/A").trim() : "N/A",
                                     stockRansa: colMap.stockRansa > -1 ? (row[colMap.stockRansa] || "0").trim() : "0",
                                     existencia: colMap.existencia > -1 ? (row[colMap.existencia] || "0").trim() : "0",
                                     transitos: colMap.transitos > -1 ? (row[colMap.transitos] || "0").trim() : "0",
-                                    doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-"
+                                    doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-",
+                                    statusMarca: colMap.statusMarca > -1 ? (row[colMap.statusMarca] || "").trim() : "",
+                                    barra: colMap.barra > -1 ? (row[colMap.barra] || "").trim() : "" // Mapeo de Barra
                                 };
                             });
                             
@@ -461,17 +465,46 @@
                 const existencia = item.existencia || '0';
                 const transitos = item.transitos || '0';
                 const doh = item.doh || '-';
+                const statusMarca = item.statusMarca;
+                const barra = item.barra; // Variable barra
+
+                // Lógica de colores para el Status
+                let statusColorClass = "text-purple-700 bg-purple-50 border-purple-100"; 
+                if (statusMarca) {
+                    const s = statusMarca.toLowerCase();
+                    if (s.includes("inactivo")) {
+                        statusColorClass = "text-gray-500 bg-gray-100 border-gray-200";
+                    } else if (s.includes("activo")) {
+                        statusColorClass = "text-green-700 bg-green-50 border-green-100";
+                    }
+                }
 
                 return `
                 <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500 hover:shadow-md transition-all flex flex-col gap-3 group">
                     <div class="flex flex-col sm:flex-row justify-between items-start gap-2">
                         <div class="flex-grow">
-                            <div class="flex items-center gap-2 mb-1">
+                            <!-- Fila de metadatos (flex-wrap para que se ajuste en móviles) -->
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
                                 <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                                     ${item.articulo}
                                 </span>
+                                
+                                <!-- Campo BARRA (Nuevo) -->
+                                ${barra ? `
+                                    <span class="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-mono flex items-center gap-1" title="Código de Barra">
+                                        <i data-lucide="barcode" class="w-3 h-3"></i> ${barra}
+                                    </span>
+                                ` : ''}
+
+                                <!-- Campo STATUS MARCA condicional con color dinámico -->
+                                ${statusMarca ? `
+                                    <span class="text-[10px] font-bold ${statusColorClass} px-1.5 py-0.5 rounded border" title="Status Marca">
+                                        ${statusMarca}
+                                    </span>
+                                ` : ''}
+
                                 <span class="text-[10px] text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded bg-gray-50">${item.marca}</span>
-                                <span class="text-[10px] text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded bg-gray-50 truncate max-w-[100px]">${item.sala}</span>
+                                <span class="text-[10px] text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded bg-gray-50 truncate max-w-[150px]">${item.sala}</span>
                             </div>
                             <p class="text-gray-800 font-medium text-sm leading-snug">
                                 ${highlightMatch(item.descripcion, term)}
@@ -571,4 +604,3 @@
     </script>
 </body>
 </html>
-
