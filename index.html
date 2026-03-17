@@ -132,9 +132,14 @@
                 <p class="text-xs text-gray-500">
                     Resultados: <span id="count" class="font-bold">0</span>
                 </p>
-                <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-medium hidden flex items-center gap-1" id="resetBtn">
-                    <i data-lucide="x-circle" class="w-3 h-3"></i> Limpiar todo
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="btnOportunidades" class="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold py-1.5 px-3 rounded border border-yellow-300 flex items-center gap-1 transition-colors">
+                        <i data-lucide="zap" class="w-3 h-3"></i> Oportunidades
+                    </button>
+                    <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-medium hidden flex items-center gap-1" id="resetBtn">
+                        <i data-lucide="x-circle" class="w-3 h-3"></i> Limpiar todo
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -171,6 +176,9 @@
         const spinner = document.getElementById('loadingSpinner');
         const statusIndicator = document.getElementById('status-indicator');
         const resetBtn = document.getElementById('resetBtn');
+        const btnOportunidades = document.getElementById('btnOportunidades');
+
+        let isOportunidadesActive = false;
 
         lucide.createIcons();
 
@@ -233,7 +241,7 @@
                             const colMap = {
                                 articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
                                 sala: -1, codSala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
-                                doh: -1, fecha: -1, statusMarca: -1, barra: -1 // Agregado campo barra
+                                doh: -1, fecha: -1, statusMarca: -1, barra: -1, pedidoSala: -1 // Agregado pedidoSala
                             };
 
                             headers.forEach((h, index) => {
@@ -255,6 +263,9 @@
 
                                 // Detección de STATUS MARCA
                                 else if (upper === "STATUS MARCA" || upper === "ESTATUS MARCA" || upper === "STATUS_MARCA") colMap.statusMarca = index;
+                                
+                                // Detección de PEDIDO SALA
+                                else if (upper === "PEDIDO SALA" || upper === "PEDIDO_SALA") colMap.pedidoSala = index;
 
                                 else if (upper.includes("FECHA") || upper.includes("ACTUALIZACION")) colMap.fecha = index;
 
@@ -289,7 +300,8 @@
                                     transitos: colMap.transitos > -1 ? (row[colMap.transitos] || "0").trim() : "0",
                                     doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-",
                                     statusMarca: colMap.statusMarca > -1 ? (row[colMap.statusMarca] || "").trim() : "",
-                                    barra: colMap.barra > -1 ? (row[colMap.barra] || "").trim() : "" // Mapeo de Barra
+                                    barra: colMap.barra > -1 ? (row[colMap.barra] || "").trim() : "",
+                                    pedidoSala: colMap.pedidoSala > -1 ? (row[colMap.pedidoSala] || "").trim() : "" // Mapeo de pedidoSala
                                 };
                             });
                             
@@ -404,6 +416,7 @@
             brandSelect.value = "";
             supervisorSelect.value = "";
             searchInput.value = "";
+            isOportunidadesActive = false; // Reiniciar filtro oportunidades
             
             updateSalaOptions();
             updateBrandOptions();
@@ -419,7 +432,18 @@
             const sala = salaSelect.value;
             const supervisor = supervisorSelect.value;
 
-            if(term || provider || brand || sala || supervisor) {
+            // Cambiar estilos visuales del botón Oportunidades según su estado
+            if (isOportunidadesActive) {
+                btnOportunidades.classList.replace('bg-yellow-100', 'bg-yellow-500');
+                btnOportunidades.classList.replace('text-yellow-800', 'text-white');
+                btnOportunidades.classList.replace('hover:bg-yellow-200', 'hover:bg-yellow-600');
+            } else {
+                btnOportunidades.classList.replace('bg-yellow-500', 'bg-yellow-100');
+                btnOportunidades.classList.replace('text-white', 'text-yellow-800');
+                btnOportunidades.classList.replace('hover:bg-yellow-600', 'hover:bg-yellow-200');
+            }
+
+            if(term || provider || brand || sala || supervisor || isOportunidadesActive) {
                 resetBtn.classList.remove('hidden');
             } else {
                 resetBtn.classList.add('hidden');
@@ -441,7 +465,21 @@
                                     item.descripcion.toLowerCase().includes(term) || 
                                     item.articulo.toLowerCase().includes(term);
                 
-                return matchProvider && matchBrand && matchSala && matchSupervisor && matchSearch;
+                let matchOportunidades = true;
+                if (isOportunidadesActive) {
+                    const status = item.statusMarca.toUpperCase();
+                    // Verificar si está estrictamente activo
+                    const isActivo = status === "ACTIVO" || (status.includes("ACTIVO") && !status.includes("INACTIVO"));
+                    const isPedido = item.pedidoSala.toUpperCase() === "SI" || item.pedidoSala.toUpperCase() === "SÍ";
+                    
+                    // Convertir texto a números (removiendo comas por si las hay) para la comparación matemática
+                    const stock = parseFloat(item.stockRansa.replace(/,/g, '')) || 0;
+                    const existencia = parseFloat(item.existencia.replace(/,/g, '')) || 0;
+                    
+                    matchOportunidades = isActivo && isPedido && (stock > 0) && (existencia <= 2);
+                }
+
+                return matchProvider && matchBrand && matchSala && matchSupervisor && matchSearch && matchOportunidades;
             });
 
             countSpan.textContent = filtered.length;
@@ -599,8 +637,16 @@
         supervisorSelect.addEventListener('change', () => { updateSalaOptions(); filterAndRender(); });
         searchInput.addEventListener('input', filterAndRender);
 
+        // Nuevo Listener para el botón de Oportunidades
+        btnOportunidades.addEventListener('click', () => {
+            isOportunidadesActive = !isOportunidadesActive;
+            filterAndRender();
+        });
+
         init();
 
     </script>
+</body>
+</html>
 </body>
 </html>
