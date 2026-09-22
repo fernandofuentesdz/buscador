@@ -133,9 +133,15 @@
                     Resultados: <span id="count" class="font-bold">0</span>
                 </p>
                 <div class="flex items-center gap-2">
+                    <!-- Botón Oportunidades -->
                     <button id="btnOportunidades" class="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold py-1.5 px-3 rounded border border-yellow-300 flex items-center gap-1 transition-colors">
                         <i data-lucide="zap" class="w-3 h-3"></i> Oportunidades
                     </button>
+                    <!-- NUEVO Botón Afectados Instock -->
+                    <button id="btnAfectados" class="text-xs bg-red-100 hover:bg-red-200 text-red-800 font-bold py-1.5 px-3 rounded border border-red-300 flex items-center gap-1 transition-colors">
+                        <i data-lucide="alert-triangle" class="w-3 h-3"></i> Afectados Instock
+                    </button>
+                    <!-- Botón Limpiar Todo -->
                     <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-medium hidden flex items-center gap-1" id="resetBtn">
                         <i data-lucide="x-circle" class="w-3 h-3"></i> Limpiar todo
                     </button>
@@ -177,8 +183,10 @@
         const statusIndicator = document.getElementById('status-indicator');
         const resetBtn = document.getElementById('resetBtn');
         const btnOportunidades = document.getElementById('btnOportunidades');
+        const btnAfectados = document.getElementById('btnAfectados'); // Referencia al nuevo botón
 
         let isOportunidadesActive = false;
+        let isAfectadosActive = false; // Estado del nuevo filtro
 
         lucide.createIcons();
 
@@ -241,7 +249,8 @@
                             const colMap = {
                                 articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
                                 sala: -1, codSala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
-                                doh: -1, fecha: -1, statusMarca: -1, barra: -1, pedidoSala: -1 // Agregado pedidoSala
+                                doh: -1, fecha: -1, statusMarca: -1, barra: -1, pedidoSala: -1,
+                                afectacionInstock: -1 // Agregado campo afectacion Instock
                             };
 
                             headers.forEach((h, index) => {
@@ -266,6 +275,9 @@
                                 
                                 // Detección de PEDIDO SALA
                                 else if (upper === "PEDIDO SALA" || upper === "PEDIDO_SALA") colMap.pedidoSala = index;
+
+                                // Detección de AFECTACION INSTOCK
+                                else if (upper.includes("FILTRO AFECTACION INSTOCK") || upper.includes("AFECTACION INSTOCK") || upper.includes("AFECTACION_INSTOCK")) colMap.afectacionInstock = index;
 
                                 else if (upper.includes("FECHA") || upper.includes("ACTUALIZACION")) colMap.fecha = index;
 
@@ -301,7 +313,8 @@
                                     doh: colMap.doh > -1 ? (row[colMap.doh] || "-").trim() : "-",
                                     statusMarca: colMap.statusMarca > -1 ? (row[colMap.statusMarca] || "").trim() : "",
                                     barra: colMap.barra > -1 ? (row[colMap.barra] || "").trim() : "",
-                                    pedidoSala: colMap.pedidoSala > -1 ? (row[colMap.pedidoSala] || "").trim() : "" // Mapeo de pedidoSala
+                                    pedidoSala: colMap.pedidoSala > -1 ? (row[colMap.pedidoSala] || "").trim() : "",
+                                    afectacionInstock: colMap.afectacionInstock > -1 ? (row[colMap.afectacionInstock] || "").trim() : "" // Mapeo de afectación
                                 };
                             });
                             
@@ -416,7 +429,8 @@
             brandSelect.value = "";
             supervisorSelect.value = "";
             searchInput.value = "";
-            isOportunidadesActive = false; // Reiniciar filtro oportunidades
+            isOportunidadesActive = false;
+            isAfectadosActive = false; // Reiniciar filtro Afectados
             
             updateSalaOptions();
             updateBrandOptions();
@@ -443,7 +457,19 @@
                 btnOportunidades.classList.replace('hover:bg-yellow-600', 'hover:bg-yellow-200');
             }
 
-            if(term || provider || brand || sala || supervisor || isOportunidadesActive) {
+            // Cambiar estilos visuales del botón Afectados Instock según su estado
+            if (isAfectadosActive) {
+                btnAfectados.classList.replace('bg-red-100', 'bg-red-500');
+                btnAfectados.classList.replace('text-red-800', 'text-white');
+                btnAfectados.classList.replace('hover:bg-red-200', 'hover:bg-red-600');
+            } else {
+                btnAfectados.classList.replace('bg-red-500', 'bg-red-100');
+                btnAfectados.classList.replace('text-white', 'text-red-800');
+                btnAfectados.classList.replace('hover:bg-red-600', 'hover:bg-red-200');
+            }
+
+            // Activar botón limpiar si algún filtro o botón está activo
+            if(term || provider || brand || sala || supervisor || isOportunidadesActive || isAfectadosActive) {
                 resetBtn.classList.remove('hidden');
             } else {
                 resetBtn.classList.add('hidden');
@@ -476,11 +502,17 @@
                     const stock = parseFloat(item.stockRansa.replace(/,/g, '')) || 0;
                     const existencia = parseFloat(item.existencia.replace(/,/g, '')) || 0;
                     
-                    // Condición modificada: existencia <= 5
                     matchOportunidades = isActivo && isPedido && (stock > 0) && (existencia <= 5);
                 }
 
-                return matchProvider && matchBrand && matchSala && matchSupervisor && matchSearch && matchOportunidades;
+                // Lógica de Filtro Afectados Instock
+                let matchAfectados = true;
+                if (isAfectadosActive) {
+                    const afectacion = item.afectacionInstock.toLowerCase();
+                    matchAfectados = afectacion === "afectado" || afectacion.includes("afectado");
+                }
+
+                return matchProvider && matchBrand && matchSala && matchSupervisor && matchSearch && matchOportunidades && matchAfectados;
             });
 
             countSpan.textContent = filtered.length;
@@ -505,8 +537,9 @@
                 const transitos = item.transitos || '0';
                 const doh = item.doh || '-';
                 const statusMarca = item.statusMarca;
-                const barra = item.barra; // Variable barra
-                const pedidoSala = item.pedidoSala; // Nueva variable Pedido Sala
+                const barra = item.barra; 
+                const pedidoSala = item.pedidoSala; 
+                const afectacionInstock = item.afectacionInstock; // Nueva variable
 
                 // Lógica de colores para el Status
                 let statusColorClass = "text-purple-700 bg-purple-50 border-purple-100"; 
@@ -556,6 +589,13 @@
                                 ${statusMarca ? `
                                     <span class="text-[10px] font-bold ${statusColorClass} px-1.5 py-0.5 rounded border" title="Status Marca">
                                         ${statusMarca}
+                                    </span>
+                                ` : ''}
+
+                                <!-- Etiqueta Afectación Instock visual (Opcional, para que se vea en el resultado) -->
+                                ${afectacionInstock && afectacionInstock.toLowerCase().includes('afectado') ? `
+                                    <span class="text-[10px] font-bold text-red-700 bg-red-50 border-red-200 px-1.5 py-0.5 rounded border flex items-center gap-1" title="Afectación Instock">
+                                        <i data-lucide="alert-triangle" class="w-3 h-3"></i> Afectado
                                     </span>
                                 ` : ''}
 
@@ -658,6 +698,12 @@
         // Nuevo Listener para el botón de Oportunidades
         btnOportunidades.addEventListener('click', () => {
             isOportunidadesActive = !isOportunidadesActive;
+            filterAndRender();
+        });
+
+        // Listener para el botón Afectados Instock
+        btnAfectados.addEventListener('click', () => {
+            isAfectadosActive = !isAfectadosActive;
             filterAndRender();
         });
 
