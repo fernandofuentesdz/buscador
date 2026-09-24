@@ -110,7 +110,7 @@
 
             <!-- Buscador por Texto -->
             <label class="block text-sm font-bold text-gray-700 mb-2" for="search">
-                Búsqueda Rápida (Descripción o Código)
+                Búsqueda Rápida (Descripción, Código o Barra)
             </label>
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -487,9 +487,12 @@
                 const matchBrand = brand === "" || item.marca === brand;
                 const matchSala = sala === "" || item.sala === sala;
                 const matchSupervisor = supervisor === "" || item.supervisor === supervisor;
+                
+                // AJUSTE: Se agregó item.barra a las condiciones de búsqueda
                 const matchSearch = term === "" || 
                                     item.descripcion.toLowerCase().includes(term) || 
-                                    item.articulo.toLowerCase().includes(term);
+                                    item.articulo.toLowerCase().includes(term) ||
+                                    item.barra.toLowerCase().includes(term);
                 
                 let matchOportunidades = true;
                 if (isOportunidadesActive) {
