@@ -250,7 +250,7 @@
                                 articulo: -1, descripcion: -1, proveedor: -1, marca: -1,
                                 sala: -1, codSala: -1, supervisor: -1, stockRansa: -1, existencia: -1, transitos: -1,
                                 doh: -1, fecha: -1, statusMarca: -1, barra: -1, pedidoSala: -1,
-                                afectacionInstock: -1 // Agregado campo afectacion Instock
+                                afectacionInstock: -1, uxc: -1, packsXCaja: -1 // Agregado campo packsXCaja
                             };
 
                             headers.forEach((h, index) => {
@@ -279,6 +279,10 @@
                                 // Detección de AFECTACION INSTOCK
                                 else if (upper.includes("FILTRO AFECTACION INSTOCK") || upper.includes("AFECTACION INSTOCK") || upper.includes("AFECTACION_INSTOCK")) colMap.afectacionInstock = index;
 
+                                // Detección de UXC y PACKS X CAJA
+                                else if (upper === "UXC" || upper === "U X C" || upper.includes("UNIDADES POR CAJA")) colMap.uxc = index;
+                                else if (upper === "PACKS X CAJA" || upper === "PACKS POR CAJA" || upper === "PACKS_X_CAJA" || upper.includes("PACKS X CAJA")) colMap.packsXCaja = index;
+
                                 else if (upper.includes("FECHA") || upper.includes("ACTUALIZACION")) colMap.fecha = index;
 
                                 else if (upper.includes("STOCK RANSA")) colMap.stockRansa = index;
@@ -300,6 +304,24 @@
                                 const salaCod = colMap.codSala > -1 ? (row[colMap.codSala] || "").trim() : "";
                                 const salaCompleta = salaCod ? `${salaNombre} (Cod: ${salaCod})` : salaNombre;
 
+                                // Lógica para cálculo de Uds x Pack
+                                const rawUxc = colMap.uxc > -1 ? (row[colMap.uxc] || "").trim() : "";
+                                const rawPacks = colMap.packsXCaja > -1 ? (row[colMap.packsXCaja] || "").trim() : "";
+                                
+                                let numUxc = parseFloat(rawUxc); if(isNaN(numUxc)) numUxc = 0;
+                                let numPacks = parseFloat(rawPacks); if(isNaN(numPacks)) numPacks = 0;
+                                
+                                let udsXPack = 1;
+                                if (numUxc === 0 || rawUxc === "") {
+                                    udsXPack = 1;
+                                } else if (numPacks === 0 || rawPacks === "") {
+                                    udsXPack = numUxc;
+                                } else {
+                                    udsXPack = numUxc / numPacks;
+                                    // Limpiamos los decimales innecesarios, ej: 1.5 en vez de 1.5000, o 2 exactos.
+                                    udsXPack = parseFloat(udsXPack.toFixed(2));
+                                }
+
                                 return {
                                     articulo: (row[colMap.articulo] || "N/A").trim(),
                                     descripcion: (row[colMap.descripcion] || "Sin descripción").trim(),
@@ -314,7 +336,9 @@
                                     statusMarca: colMap.statusMarca > -1 ? (row[colMap.statusMarca] || "").trim() : "",
                                     barra: colMap.barra > -1 ? (row[colMap.barra] || "").trim() : "",
                                     pedidoSala: colMap.pedidoSala > -1 ? (row[colMap.pedidoSala] || "").trim() : "",
-                                    afectacionInstock: colMap.afectacionInstock > -1 ? (row[colMap.afectacionInstock] || "").trim() : "" // Mapeo de afectación
+                                    afectacionInstock: colMap.afectacionInstock > -1 ? (row[colMap.afectacionInstock] || "").trim() : "",
+                                    uxc: rawUxc, // Mantenemos el valor original de UXC
+                                    udsXPack: udsXPack // Nuevo valor calculado
                                 };
                             });
                             
@@ -542,7 +566,9 @@
                 const statusMarca = item.statusMarca;
                 const barra = item.barra; 
                 const pedidoSala = item.pedidoSala; 
-                const afectacionInstock = item.afectacionInstock; // Nueva variable
+                const afectacionInstock = item.afectacionInstock;
+                const uxc = item.uxc; 
+                const udsXPack = item.udsXPack; // Recuperar el valor calculado
 
                 // Lógica de colores para el Status
                 let statusColorClass = "text-purple-700 bg-purple-50 border-purple-100"; 
@@ -594,6 +620,18 @@
                                         ${statusMarca}
                                     </span>
                                 ` : ''}
+
+                                <!-- Campo UXC -->
+                                ${uxc ? `
+                                    <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 border-indigo-200 px-1.5 py-0.5 rounded border flex items-center gap-1" title="UXC (Unidades por Caja)">
+                                        <i data-lucide="box" class="w-3 h-3"></i> UXC: ${uxc}
+                                    </span>
+                                ` : ''}
+
+                                <!-- Campo Uds x Pack (NUEVO) -->
+                                <span class="text-[10px] font-bold text-cyan-700 bg-cyan-50 border-cyan-200 px-1.5 py-0.5 rounded border flex items-center gap-1" title="Unidades por Pack (Calculado)">
+                                    <i data-lucide="package" class="w-3 h-3"></i> Uds x Pack: ${udsXPack}
+                                </span>
 
                                 <!-- Etiqueta Afectación Instock visual (Opcional, para que se vea en el resultado) -->
                                 ${afectacionInstock && afectacionInstock.toLowerCase().includes('afectado') ? `
